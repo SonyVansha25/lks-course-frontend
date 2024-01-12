@@ -40,37 +40,33 @@ $ npm run generate # Use --prefix <your_path> for specific path and use --quite 
 ### UserData to use Instance Front end
 ```sh
 #!/bin/bash
-echo "step1 - install dependencies"
-yum install -y gcc-c++ make git amazon-efs-utils
-echo "step2 - install nodejs v16"
+sudo su
+echo "step1.install dependencies"
+yum install git httpd gcc-c++ make -y
 yum install https://rpm.nodesource.com/pub_16.x/nodistro/repo/nodesource-release-nodistro-1.noarch.rpm -y
-yum install -y nodejs
-echo "step3 - Clone github Backend"
-mkdir /home/ec2-user/apps-cloud-lksn2022
-git clone https://github.com/SonyVansha25/apps-cloud-lksn2022.git /home/ec2-user/apps-cloud-lksn2022
-echo $(ls /home/ec2-user/apps-cloud-lksn2022)
-echo "step4 - Create env"
-touch /home/ec2-user/apps-cloud-lksn2022/backend/.env
-printf "DB_HOST=XXX\n" >> /home/ec2-user/apps-cloud-lksn2022/backend/.env
-printf "DB_USER=XXX\n" >> /home/ec2-user/apps-cloud-lksn2022/backend/.env
-printf "DB_PASS=XXX\n" >> /home/ec2-user/apps-cloud-lksn2022/backend/.env
-printf "DB_NAME=XXX\n" >> /home/ec2-user/apps-cloud-lksn2022/backend/.env
-printf "NODE_ENV=production\n" >> /home/ec2-user/apps-cloud-lksn2022/backend/.env
-printf "AWS_ACCESS_KEY=XXX\n" >> /home/ec2-user/apps-cloud-lksn2022/backend/.env
-printf "AWS_SECRET_KEY=XXX\n" >> /home/ec2-user/apps-cloud-lksn2022/backend/.env
-printf "AWS_BUCKET_NAME=XXX\n" >> /home/ec2-user/apps-cloud-lksn2022/backend/.env
-printf "REDIS_HOST=XXX\n" >> /home/ec2-user/apps-cloud-lksn2022/backend/.env
-printf "REDIS_PORT=6379\n" >> /home/ec2-user/apps-cloud-lksn2022/backend/.env
-printf "REDIS_PASS=XXX\n" >> /home/ec2-user/apps-cloud-lksn2022/backend/.env
-printf "LOG_PATH=/home/ec2-user/efs/server/tmp\n" >> /home/ec2-user/apps-cloud-lksn2022/backend/.env
-printf "CACHE_PATH=/home/ec2-user/efs/server/logs\n" >> /home/ec2-user/apps-cloud-lksn2022/backend/.env
-echo "step5 - mount efs"
-mkdir /home/ec2-user/efs
-sudo mount -t nfs4 -o nfsvers=4.1,rsize=1048576,wsize=1048576,hard,timeo=600,retrans=2,noresvport 180.10.2.22:/ /home/ec2-user/efs
-echo "step6 - npm install package"
-npm install pm2 --prefix /home/ec2-user/apps-cloud-lksn2022/backend
-echo "step7 - npm install backend" 
-npm install --prefix /home/ec2-user/apps-cloud-lksn2022/backend
-npm run start-apps --prefix /home/ec2-user/apps-cloud-lksn2022/backend
-echo "step8 - Done"
+yum install nodejs -y
+systemctl start httpd
+systemctl enable httpd
+echo "step2.clone git repo"
+mkdir /home/ec2-user/lks-course-frontend
+git clone https://github.com/betuah/lks-course-frontend.git /home/ec2-user/lks-course-frontend
+echo $(ls /home/ec2-user/lks-course-frontend)
+echo "step3.create environment"
+touch /home/ec2-user/lks-course-frontend/.env
+printf "NUXT_ENV_API_URL=http://lks-lb-frontend-xxx.us-east-1.elb.amazonaws.com" >> /home/ec2-user/lks-course-frontend/.env
+echo "step4.install and run application"
+npm install --prefix /home/ec2-user/lks-course-frontend/
+npm run generate --prefix /home/ec2-user/lks-course-frontend/ -y
+cp -R /home/ec2-user/lks-course-frontend/dist/* /var/www/html
+echo "step5.create virtualhost"
+touch /etc/httpd/conf.d/proxy.conf
+printf "<Virtualhost *:80>\n" >> /etc/httpd/conf.d/proxy.conf
+printf 'Header set Access-Control-Allow-Origin "*"\n' >> /etc/httpd/conf.d/proxy.conf
+printf 'Header set Access-Control-Allow-Methods "GET, PUT, POST, DELETE, PATCH"\n' >> /etc/httpd/conf.d/proxy.conf
+printf "ProxyPreserveHost On\n" >> /etc/httpd/conf.d/proxy.conf
+printf "ProxyPass /api/ http://internal-lks-lb-backend-xxx.us-east-1.elb.amazonaws.com/api/\n" >> /etc/httpd/conf.d/proxy.conf
+printf "ProxyPassReverse /api/ internal-lks-lb-backend-xxx.us-east-1.elb.amazonaws.com/api/\n" >> /etc/httpd/conf.d/proxy.conf
+printf "</Virtualhost>\n" >> /etc/httpd/conf.d/proxy.conf
+systemctl restart httpd
+systemctl status httpd
 ```
